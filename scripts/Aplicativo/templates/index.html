@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Joystick Virtual para Robô</title>
+    <style>
+        /* Estilos gerais */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            background-color: #4CAF50;
+            color: white;
+            margin: 0;
+            padding: 20px 0;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        /* Estilos do joystick */
+        #joystick {
+            width: 200px;
+            height: 200px;
+            background: gray;
+            border-radius: 50%;
+            margin: 20px auto;
+            position: relative;
+            touch-action: none;
+            border: 2px solid #555;
+        }
+        #knob {
+            width: 80px;
+            height: 80px;
+            background: blue;
+            border-radius: 50%;
+            position: absolute;
+            left: 60px;
+            top: 60px;
+            touch-action: none;
+            border: 2px solid #333;
+        }
+        /* Estilos dos botões de ação */
+        #buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px auto;
+            max-width: 800px;
+        }
+        .action-button {
+            width: 150px;
+            height: 40px;
+            margin: 5px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .action-button:hover {
+            background-color: #0b7dda;
+        }
+        /* Estilos dos botões de controle */
+        #control-buttons {
+            margin: 20px auto;
+        }
+        .control-button {
+            width: 300px;
+            height: 40px;
+            margin: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .control-button:hover {
+            background-color: #da190b;
+        }
+    </style>
+</head>
+<body>
+    <h1>Joystick Virtual para Robô</h1>
+    <div id="joystick">
+        <div id="knob"></div>
+    </div>
+    <div id="buttons">
+        <!-- Botões de ação serão inseridos aqui -->
+    </div>
+    <div id="control-buttons">
+        <!-- Botão para o Reconhecimento de Gestos -->
+        <button id="recon-button" class="control-button">Reconhecimento de Gestos</button>
+        <!-- Botão para o Controle Xbox -->
+        <button id="joystick-button" class="control-button">Ativar Controle Xbox</button>
+    </div>
+    <div id="status">Pronto</div>
+
+    <script>
+        // Variáveis globais
+        let joystick = document.getElementById('joystick');
+        let knob = document.getElementById('knob');
+        let statusLabel = document.getElementById('status');
+        let reconButton = document.getElementById('recon-button');
+        let joystickButton = document.getElementById('joystick-button');
+        let isMoving = false;
+        let knobCenterX = 60;
+        let knobCenterY = 60;
+        let joystickRadius = 100;
+        let knobRadius = 40;
+        let reconActive = false;
+        let xboxJoystickActive = false;
+
+        // Evento para iniciar o movimento
+        knob.addEventListener('pointerdown', function(event) {
+            isMoving = true;
+            knob.setPointerCapture(event.pointerId);
+        });
+
+        // Evento para mover o knob
+        knob.addEventListener('pointermove', function(event) {
+            if (!isMoving) return;
+
+            let rect = joystick.getBoundingClientRect();
+            let dx = event.clientX - rect.left - joystickRadius;
+            let dy = event.clientY - rect.top - joystickRadius;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > joystickRadius - knobRadius) {
+                let angle = Math.atan2(dy, dx);
+                dx = (joystickRadius - knobRadius) * Math.cos(angle);
+                dy = (joystickRadius - knobRadius) * Math.sin(angle);
+            }
+
+            knob.style.left = (joystickRadius + dx - knobRadius) + 'px';
+            knob.style.top = (joystickRadius + dy - knobRadius) + 'px';
+
+            // Normalizar valores entre -1 e 1
+            let normalizedX = dx / (joystickRadius - knobRadius);
+            let normalizedY = dy / (joystickRadius - knobRadius);
+
+            // Inverter o eixo Y
+            normalizedY = -normalizedY;
+
+            // Enviar comando de movimento
+            fetch('/move', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({'x': normalizedY, 'y': 0, 'z': -normalizedX})
+            }).then(response => response.json())
+              .then(data => {
+                  statusLabel.textContent = `Movendo: x=${normalizedX.toFixed(2)}, y=${normalizedY.toFixed(2)}`;
+              });
+        });
+
+        // Evento para finalizar o movimento
+        knob.addEventListener('pointerup', function(event) {
+            isMoving = false;
+            // Resetar a posição do knob
+            knob.style.left = '60px';
+            knob.style.top = '60px';
+
+            // Enviar comando para parar
+            fetch('/move', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({'x': 0, 'y': 0, 'z': 0})
+            }).then(response => response.json())
+              .then(data => {
+                  statusLabel.textContent = 'Parado';
+              });
+        });
+
+        // Função para adicionar botões de ação
+        const SPORT_CMD = {
+            "BalanceStand": 1002,
+            "BackFlip": 1044,
+            "BodyHeight": 1013,
+            "Bound": 1304,
+            "Content": 1020,
+            "CrossStep": 1302,
+            "Dance1": 1022,
+            "Dance2": 1023,
+            "Damp": 1001,
+            "EconomicGait": 1035,
+            "Euler": 1007,
+            "FingerHeart": 1036,
+            "FootRaiseHeight": 1014,
+            "FreeWalk": 1045,
+            "FrontFlip": 1030,
+            "FrontJump": 1031,
+            "FrontPounce": 1032,
+            "Handstand": 1301,
+            "Hello": 1016,
+            "LeadFollow": 1045,
+            "LeftFlip": 1042,
+            "MoonWalk": 1305,
+            "Move": 1008,
+            "OnesidedStep": 1303,
+            "Pose": 1028,
+            "RecoveryStand": 1006,
+            "RightFlip": 1043,
+            "RiseSit": 1010,
+            "Scrape": 1029,
+            "Sit": 1009,
+            "SpeedLevel": 1015,
+            "StandDown": 1005,
+            "StandOut": 1039,
+            "StandUp": 1004,
+            "StopMove": 1003,
+            "Stretch": 1017,
+            "Trigger": 1012,
+            "Wallow": 1021,
+            "WiggleHips": 1033
+        };
+
+        let buttonsContainer = document.getElementById('buttons');
+
+        Object.keys(SPORT_CMD).sort().forEach(cmdName => {
+            let apiId = SPORT_CMD[cmdName];
+            let displayName = cmdName.replace('_', ' ');
+            let button = document.createElement('button');
+            button.className = 'action-button';
+            button.textContent = displayName;
+            button.addEventListener('click', function() {
+                fetch('/action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({'api_id': apiId})
+                }).then(response => response.json())
+                  .then(data => {
+                      statusLabel.textContent = `Executando: ${displayName}`;
+                  });
+            });
+            buttonsContainer.appendChild(button);
+        });
+
+        // Função para alternar o Recon.py
+        reconButton.addEventListener('click', function() {
+            fetch('/toggle_recon', {
+                method: 'POST'
+            }).then(response => response.json())
+              .then(data => {
+                  statusLabel.textContent = data.status;
+                  reconActive = !reconActive;
+                  reconButton.textContent = reconActive ? 'Desativar Reconhecimento de Gestos' : 'Reconhecimento de Gestos';
+              });
+        });
+
+        // Função para alternar o MoveJoystickAvancado.py
+        joystickButton.addEventListener('click', function() {
+            fetch('/toggle_joystick', {
+                method: 'POST'
+            }).then(response => response.json())
+              .then(data => {
+                  statusLabel.textContent = data.status;
+                  xboxJoystickActive = !xboxJoystickActive;
+                  joystickButton.textContent = xboxJoystickActive ? 'Desativar Controle Xbox' : 'Ativar Controle Xbox';
+              });
+        });
+
+        // Conectar ao robô ao carregar a página
+        fetch('/connect').then(response => response.json())
+            .then(data => {
+                statusLabel.textContent = data.status;
+            });
+    </script>
+</body>
+</html>
