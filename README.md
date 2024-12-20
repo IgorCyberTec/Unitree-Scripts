@@ -76,6 +76,8 @@ pip install -r requirements.txt
 
 ## Contribution
 
+Hi, my name is Igor, I'm a hacking and artificial intelligence specialist. I worked coding new functions in Unitree's robot dog, but I was recently fired and I no longer have the dog to continue the project, so I'm asking for help.
+
 If you wish to contribute to the project:
 
 1. Fork this repository.
