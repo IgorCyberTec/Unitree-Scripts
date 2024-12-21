@@ -9,7 +9,7 @@ import json
 
 # Configuração da conexão WebRTC
 conn = Go2WebRTCConnection(WebRTCConnectionMethod.LocalAP)
-conn = Go2WebRTCConnection(WebRTCConnectionMethod.Remote, serialNumber="B42D4000O49AKA06", username="andre@glededu.com", password="Gie2309$")
+conn = Go2WebRTCConnection(WebRTCConnectionMethod.Remote, serialNumber="B42D400000", username="", password="")
 
 
 # Inicializar suporte ao joystick
